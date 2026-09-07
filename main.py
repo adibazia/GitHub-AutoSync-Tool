@@ -1,31 +1,70 @@
 import subprocess
-import datetime
+import random
 
-print("--- Professional GitHub Auto-Sync Tool ---")
+def get_modified_files():
+    status = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True).stdout.strip()
+    if not status:
+        return []
+    
+    files = []
+    for line in status.split('\n'):
+        parts = line.strip().split()
+        if len(parts) >= 2:
+            files.append(parts[-1])
+    return files
 
-# 1. Stage all files
-print("[1/3] Staging files...")
-subprocess.run(["git", "add", "."])
+def generate_smart_default(file_name):
+    # Professional conventional commit messages based on file type
+    if file_name.endswith('.py'):
+        templates = [
+            f"refactor: optimize workflow execution in {file_name}",
+            f"feat: extend core logic within {file_name}",
+            f"fix: resolve edge case handling in {file_name}",
+            f"style: refine code structure and imports in {file_name}"
+        ]
+    elif file_name.endswith('.md'):
+        templates = [
+            f"docs: update project description in {file_name}",
+            f"docs: refine setup instructions in {file_name}"
+        ]
+    else:
+        templates = [
+            f"chore: update {file_name} configurations",
+            f"refactor: clean up workspace structure in {file_name}"
+        ]
+    
+    return random.choice(templates)
 
-# 2. Get professional commit message
-user_msg = input("\nEnter commit message (Press Enter for default): ").strip()
+def run():
+    # 1. Stage changes
+    subprocess.run(["git", "add", "."])
+    
+    # 2. Detect changes
+    changed_files = get_modified_files()
+    if not changed_files:
+        print("No changes detected to push.")
+        return
 
-if not user_msg:
-    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-    commit_message = f"chore: routine code updates {now}"
-else:
-    commit_message = user_msg
+    # 3. User input with professional dynamic fallback
+    primary_file = changed_files[0]
+    default_msg = generate_smart_default(primary_file)
+    
+    print(f"Detected file: {primary_file}")
+    user_msg = input("Enter commit message (Press Enter for auto-generate): ").strip()
+    
+    commit_msg = user_msg if user_msg else default_msg
 
-# 3. Commit changes
-print(f"\n[2/3] Committing with message: '{commit_message}'")
-subprocess.run(["git", "commit", "-m", commit_message])
+    # 4. Commit and push
+    print(f"\nCommitting: '{commit_msg}'")
+    subprocess.run(["git", "commit", "-m", commit_msg])
+    
+    print("Pushing to GitHub...")
+    push = subprocess.run(["git", "push"], capture_output=True, text=True)
 
-# 4. Push to GitHub
-print("\n[3/3] Syncing with GitHub...")
-push_result = subprocess.run(["git", "push"], capture_output=True, text=True)
+    if push.returncode == 0:
+        print("Done! Changes synced successfully.")
+    else:
+        print("Push failed:", push.stderr)
 
-if push_result.returncode == 0:
-    print("\n✅ Auto-Sync Successful! All changes pushed to GitHub.")
-else:
-    print("\n❌ Push failed. Output:")
-    print(push_result.stderr)
+if __name__ == "__main__":
+    run()
